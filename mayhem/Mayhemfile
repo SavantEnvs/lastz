@@ -1,0 +1,20 @@
+# LASTZ fuzz target — the raw file-input CLI (parity with the original integration's `lastz`
+# target). LASTZ aligns two DNA sequence files; we hold sequence-1 (the reference) fixed to a
+# baked seed and fuzz sequence-2 (the query), exercising the FASTA reader + seeding + gapped
+# extension + output path. The reference is a READ of a baked read-only file, so its /mayhem
+# path is deliberate — not a scratch write:
+# mayhem-lint: ok-image-path
+project: savantenvs/lastz
+target: lastz
+testsuite:
+  - https://$MAYHEM_DOMAIN/$MAYHEM_PROJECT/$MAYHEM_TARGET/testsuite.tar
+  - file://mayhem/lastz/testsuite
+cmds:
+    # afl: true — the binary is AFL-instrumented in build.sh (afl-clang-fast), so Mayhem reads AFL
+    # edge coverage instead of its binary-only tracer (which records 0 edges on this ASan CLI binary).
+    # detect_leaks=0 is baked into the binary via mayhem/asan_default_options.c (LASTZ is an
+    # allocate-and-exit batch tool that floods LeakSanitizer on ~18% of inputs) — Mayhem owns
+    # ASAN_OPTIONS at run time, so we set it through the __asan_default_options() hook, not here.
+  - cmd: /mayhem/mayhem/lastz/lastz /mayhem/mayhem/lastz/target.fa @@
+    filepath: /tmp/lastz_query.fa
+    afl: true
